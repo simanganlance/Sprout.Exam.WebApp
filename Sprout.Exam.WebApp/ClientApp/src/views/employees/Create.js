@@ -82,7 +82,9 @@ export class EmployeeCreate extends Component {
         this.props.history.push("/employees/index");
     }
     else{
-        alert("There was an error occured.");
+		this.setState({ loadingSave: false });
+		const errorResponseText = await response.text();
+        alert(errorResponseText);
     }
   }
 

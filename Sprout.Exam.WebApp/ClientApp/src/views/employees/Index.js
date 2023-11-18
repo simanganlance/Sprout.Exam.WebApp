@@ -29,7 +29,7 @@ export class EmployeesIndex extends Component {
           {employees.map(employee =>
             <tr key={employee.id}>
               <td>{employee.fullName}</td>
-              <td>{employee.birthdate}</td>
+              <td>{employee.formattedBirthDate}</td>
               <td>{employee.tin}</td>
               <td>{employee.typeId === 1?"Regular":"Contractual"}</td>
               <td>
@@ -84,7 +84,8 @@ export class EmployeesIndex extends Component {
       })});
     }
     else{
-      alert("There was an error occured.");
+        const errorResponseText = await response.text();
+        alert(errorResponseText);
     }
   }
 }

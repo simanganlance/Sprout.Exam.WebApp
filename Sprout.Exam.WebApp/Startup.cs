@@ -9,8 +9,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Sprout.Exam.DataAccess.Repository.Interfaces;
 using Sprout.Exam.WebApp.Data;
+using Sprout.Exam.WebApp.DataAccessWrapper;
 using Sprout.Exam.WebApp.Models;
+using AutoMapper;
+using Sprout.Exam.DataAccess.Helpers;
+using Sprout.Exam.DataAccess.Interfaces;
+using Sprout.Exam.DataAccess.Implementation;
 
 namespace Sprout.Exam.WebApp
 {
@@ -43,7 +49,18 @@ namespace Sprout.Exam.WebApp
 
             services.AddControllersWithViews();
             services.AddRazorPages();
+            services.AddScoped<IDbContextWrapper, DbContextWrapper>();
+            services.AddScoped<IEmployeeService, EmployeeService>();
 
+            // Configure AutoMapper and create a mapping configuration
+            var mappingConfig = new MapperConfiguration(cfg =>
+            {
+                cfg.AddProfile<AutoMapperProfiles>();// Register your AutoMapper profiles here
+                                                 // Add other configurations or profiles as needed
+            });
+
+            IMapper mapper = mappingConfig.CreateMapper();
+            services.AddSingleton(mapper);
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration =>
             {

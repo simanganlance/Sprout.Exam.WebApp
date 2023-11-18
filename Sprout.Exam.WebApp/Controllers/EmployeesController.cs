@@ -7,6 +7,14 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Sprout.Exam.Business.DataTransferObjects;
 using Sprout.Exam.Common.Enums;
+using Sprout.Exam.WebApp.Helpers;
+using Microsoft.Extensions.Logging;
+using Sprout.Exam.DataAccess.Interfaces;
+using Sprout.Exam.DataAccess.Implementation;
+using Humanizer;
+using Sprout.Exam.Common.Model;
+using Sprout.Exam.Business.Factory;
+using Sprout.Exam.WebApp.Models;
 
 namespace Sprout.Exam.WebApp.Controllers
 {
@@ -15,6 +23,13 @@ namespace Sprout.Exam.WebApp.Controllers
     [ApiController]
     public class EmployeesController : ControllerBase
     {
+        private readonly ILogger<EmployeesController> _logger;
+        private readonly IEmployeeService _employeeService;
+        public EmployeesController(ILogger<EmployeesController> logger, IEmployeeService employeeService) {
+            _logger = logger;
+            _employeeService = employeeService;
+        }
+
 
         /// <summary>
         /// Refactor this method to go through proper layers and fetch from the DB.
@@ -23,8 +38,19 @@ namespace Sprout.Exam.WebApp.Controllers
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            var result = await Task.FromResult(StaticEmployees.ResultList);
-            return Ok(result);
+            try
+            {
+                var result = await _employeeService.GetAllEmployee();
+                if (result == null) return NotFound();
+
+                return Ok(result);
+            }
+            catch (Exception e)
+            {
+
+                _logger.LogError($"Error at GetById: {e.Message}");
+                return BadRequest("Error during GetById");
+            }
         }
 
         /// <summary>
@@ -34,8 +60,20 @@ namespace Sprout.Exam.WebApp.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var result = await Task.FromResult(StaticEmployees.ResultList.FirstOrDefault(m => m.Id == id));
-            return Ok(result);
+            try
+            {
+                var result = await _employeeService.GetEmployeeById(id);
+                if (result == null) return NotFound();
+
+                return Ok(result);
+            }
+            catch(Exception e) {
+
+                _logger.LogError($"Error at GetById: {e.Message}");
+                return BadRequest("Error during GetById");
+            }
+
+               
         }
 
         /// <summary>
@@ -45,13 +83,21 @@ namespace Sprout.Exam.WebApp.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Put(EditEmployeeDto input)
         {
-            var item = await Task.FromResult(StaticEmployees.ResultList.FirstOrDefault(m => m.Id == input.Id));
-            if (item == null) return NotFound();
-            item.FullName = input.FullName;
-            item.Tin = input.Tin;
-            item.Birthdate = input.Birthdate.ToString("yyyy-MM-dd");
-            item.TypeId = input.TypeId;
-            return Ok(item);
+            try {
+                var isValid = ValidateParameters.ValidateEditEmployeeParameters(input);
+                if (!isValid.IsSuccess)
+                    return BadRequest(isValid.Message);
+                var updatedEmployee = await _employeeService.UpdateEmployee(input);
+
+                return Ok(updatedEmployee);
+            }
+            catch(Exception e)
+            {
+                _logger.LogError($"Error at Update: {e.Message}");
+                return BadRequest("Error during Employee Update");
+
+            }
+            
         }
 
         /// <summary>
@@ -61,19 +107,29 @@ namespace Sprout.Exam.WebApp.Controllers
         [HttpPost]
         public async Task<IActionResult> Post(CreateEmployeeDto input)
         {
+            try {
+                var isValid = ValidateParameters.ValidateCreateEmployeeParameters(input);
+                if (!isValid.IsSuccess)
+                    return BadRequest(isValid.Message);
 
-           var id = await Task.FromResult(StaticEmployees.ResultList.Max(m => m.Id) + 1);
+                var employeeExist = await _employeeService.CheckIfEmployeeExist(input);
+                if (!employeeExist.IsSuccess)
+                    return BadRequest("Employee already exist");
 
-            StaticEmployees.ResultList.Add(new EmployeeDto
+                var tinExist = await _employeeService.CheckIfTinExist(input.Tin);
+                if (!tinExist.IsSuccess)
+                    return BadRequest("Tin already exist");
+
+                var newEmployee = await _employeeService.AddEmployee(input);
+
+                return Created($"/api/employees/{newEmployee.Id}", newEmployee.Id);
+            }
+            catch (Exception e)
             {
-                Birthdate = input.Birthdate.ToString("yyyy-MM-dd"),
-                FullName = input.FullName,
-                Id = id,
-                Tin = input.Tin,
-                TypeId = input.TypeId
-            });
-
-            return Created($"/api/employees/{id}", id);
+                _logger.LogError($"Error at Create: {e.Message}");
+                return BadRequest("Error during Employee Creation");
+            }
+            
         }
 
 
@@ -84,10 +140,19 @@ namespace Sprout.Exam.WebApp.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var result = await Task.FromResult(StaticEmployees.ResultList.FirstOrDefault(m => m.Id == id));
-            if (result == null) return NotFound();
-            StaticEmployees.ResultList.RemoveAll(m => m.Id == id);
-            return Ok(id);
+            try
+            {
+                var result = await _employeeService.GetEmployeeById(id);
+
+                if (result == null) return NotFound();
+                await _employeeService.DeletEmployee(id);
+                return Ok(id);
+            }
+            catch (Exception e) {
+                _logger.LogError($"Error at Calculate: {e.Message}");
+                return BadRequest("Error during Employee Deletion");
+            }
+            
         }
 
 
@@ -100,23 +165,37 @@ namespace Sprout.Exam.WebApp.Controllers
         /// <param name="workedDays"></param>
         /// <returns></returns>
         [HttpPost("{id}/calculate")]
-        public async Task<IActionResult> Calculate(int id,decimal absentDays,decimal workedDays)
+        public async Task<IActionResult> Calculate(int id,[FromBody] CalculateParameter calculateParameter)
         {
-            var result = await Task.FromResult(StaticEmployees.ResultList.FirstOrDefault(m => m.Id == id));
-
-            if (result == null) return NotFound();
-            var type = (EmployeeType) result.TypeId;
-            return type switch
+            try
             {
-                EmployeeType.Regular =>
-                    //create computation for regular.
-                    Ok(25000),
-                EmployeeType.Contractual =>
-                    //create computation for contractual.
-                    Ok(20000),
-                _ => NotFound("Employee Type not found")
-            };
+                    
+                var result = await _employeeService.GetEmployeeById(id);
 
+                if (result == null) return NotFound();
+
+                var isValid =ValidateParameters.ValidateCalculateParameters(calculateParameter.AbsentDays, calculateParameter.WorkedDays);
+                if (!isValid.IsSuccess)
+                    return BadRequest(isValid.Message);
+                var type = (EmployeeType) result.TypeId;
+
+                var factory = new EmployeeFactory();
+                var employee = factory.CreateEmployee(type);
+                switch (type) {
+                    case EmployeeType.Regular:
+                        return Ok(employee.CalculateSalary(result.Salary, calculateParameter.AbsentDays));
+                    case EmployeeType.Contractual:
+                        return Ok(employee.CalculateSalary(result.Salary, calculateParameter.WorkedDays));
+                    default:
+                        return NotFound();
+                }
+                
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Error at Calculate: {e.Message}");
+                return BadRequest("Error during Calculation");
+            }
         }
 
     }
