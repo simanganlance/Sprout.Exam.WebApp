@@ -6,7 +6,7 @@ export class EmployeeEdit extends Component {
 
   constructor(props) {
     super(props);
-    this.state = { id: 0,fullName: '',birthdate: '',tin: '',typeId: 1, loading: true,loadingSave:false };
+    this.state = { id: 0,fullName: '',birthdate: '',tin: '',typeId: 1,formattedBirthDate: '', loading: true,loadingSave:false };
   }
 
   componentDidMount() {
@@ -24,7 +24,6 @@ export class EmployeeEdit extends Component {
   }
 
   render() {
-
     let contents = this.state.loading
     ? <p><em>Loading...</em></p>
     : <div>
@@ -36,7 +35,7 @@ export class EmployeeEdit extends Component {
 </div>
 <div className='form-group col-md-6'>
   <label htmlFor='inputBirthdate4'>Birthdate: *</label>
-  <input type='date' className='form-control' id='inputBirthdate4' onChange={this.handleChange.bind(this)} name="birthdate" value={this.state.birthdate} placeholder='Birthdate' />
+  <input type='date' className='form-control' id='inputBirthdate4' onChange={this.handleChange.bind(this)} name="birthdate" value={this.state.formattedBirthDate} placeholder='Birthdate' />
 </div>
 </div>
 <div className="form-row">
@@ -66,7 +65,7 @@ export class EmployeeEdit extends Component {
       </div>
     );
   }
-
+  
   async saveEmployee() {
     this.setState({ loadingSave: true });
     const token = await authService.getAccessToken();
@@ -83,7 +82,8 @@ export class EmployeeEdit extends Component {
         this.props.history.push("/employees/index");
     }
     else{
-        alert("There was an error occured.");
+        const errorResponseText = await response.text();
+        alert(errorResponseText);
     }
   }
 
@@ -94,6 +94,6 @@ export class EmployeeEdit extends Component {
       headers: !token ? {} : { 'Authorization': `Bearer ${token}` }
     });
     const data = await response.json();
-    this.setState({ id: data.id,fullName: data.fullName,birthdate: data.birthdate,tin: data.tin,typeId: data.typeId, loading: false,loadingSave: false });
+    this.setState({ id: data.id,fullName: data.fullName,birthdate: data.birthdate,tin: data.tin,typeId: data.typeId,formattedBirthDate: data.formattedBirthDate, loading: false,loadingSave: false });
   }
 }
