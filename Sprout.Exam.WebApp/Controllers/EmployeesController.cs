@@ -145,7 +145,7 @@ namespace Sprout.Exam.WebApp.Controllers
                 var result = await _employeeService.GetEmployeeById(id);
 
                 if (result == null) return NotFound();
-                await _employeeService.DeletEmployee(id);
+                await _employeeService.DeleteEmployee(id);
                 return Ok(id);
             }
             catch (Exception e) {
