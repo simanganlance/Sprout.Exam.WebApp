@@ -35,7 +35,7 @@ export class EmployeeEdit extends Component {
 </div>
 <div className='form-group col-md-6'>
   <label htmlFor='inputBirthdate4'>Birthdate: *</label>
-  <input type='date' className='form-control' id='inputBirthdate4' onChange={this.handleChange.bind(this)} name="birthdate" value={this.state.formattedBirthDate} placeholder='Birthdate' />
+  <input type='date' className='form-control' id='inputBirthdate4' onChange={this.handleChange.bind(this)} name="formattedBirthDate" value={this.state.formattedBirthDate} placeholder='Birthdate' />
 </div>
 </div>
 <div className="form-row">
@@ -67,7 +67,7 @@ export class EmployeeEdit extends Component {
   }
   
   async saveEmployee() {
-    this.setState({ loadingSave: true });
+    this.setState({ loadingSave: true, birthdate: this.state.formattedBirthDate});
     const token = await authService.getAccessToken();
     const requestOptions = {
         method: 'PUT',
